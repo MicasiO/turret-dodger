@@ -49,7 +49,7 @@ public class Blood {
 				.height(frameHeight * 2);
 
 		Vector2 origin = new Vector2();
-		origin.x(frameWidth).y(frameHeight); // pivot point for rotation
+		origin.x(frameWidth).y(frameHeight);
 
 		Color alpha = new Color();
 		alpha.r((byte) 255);

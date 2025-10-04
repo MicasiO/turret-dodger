@@ -1,8 +1,9 @@
 com/game/Bullet.class
 com/game/Turret.class
 com/game/MapLoader.class
+com/game/App.class
 com/game/Constants.class
 com/game/Player.class
 com/game/World.class
+com/game/MapEditor.class
 com/game/Blood.class
-com/game/App.class

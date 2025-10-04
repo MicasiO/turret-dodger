@@ -152,6 +152,7 @@ public class Player {
 			if (hittingWallX && hittingWallY)
 				break;
 		}
+
 		if (!hittingWallX)
 			pos.x(pos.x() + dx);
 		if (!hittingWallY)
