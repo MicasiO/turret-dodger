@@ -8,7 +8,9 @@ import static com.game.Constants.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.w3c.dom.css.Rect;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.File;
 
 public class MapEditor {
 	public static MapEditor mapEditorInstance = null;
@@ -80,7 +82,7 @@ public class MapEditor {
 		drawPlayer(starterPos);
 
 		for (Turret turret : turrets) {
-			turret.draw();
+			turret.draw(0.5f);
 		}
 
 		if (waitingForTurretInput) {
@@ -98,6 +100,9 @@ public class MapEditor {
 	}
 
 	public void update() {
+		if (IsKeyPressed(KEY_S)) {
+			saveMap("map.csv");
+		}
 		if (waitingForTurretInput) {
 			int key = GetCharPressed();
 
@@ -265,5 +270,61 @@ public class MapEditor {
 		t.interval = (float) interval;
 		t.speed = speed;
 		turrets.add(t);
+	}
+
+	public void saveMap(String filename) {
+		String folderPath = "src/main/resources/maps";
+		File file = new File(folderPath, filename);
+		try (FileWriter writer = new FileWriter(file)) {
+			int cols = (int) Math.ceil((float) SCREEN_WIDTH / cellSize);
+			int rows = (int) Math.ceil((float) SCREEN_HEIGHT / cellSize);
+
+			for (int j = 0; j < rows; j++) {
+				for (int i = 0; i < cols; i++) {
+					float x = i * cellSize;
+					float y = j * cellSize;
+
+					String cellValue = "";
+
+					for (Rectangle wall : walls) {
+						if (wall.x() == x && wall.y() == y) {
+							cellValue = "w";
+							break;
+						}
+					}
+
+					for (Rectangle floor : floors) {
+						if (floor.x() == x && floor.y() == y) {
+							cellValue = "0";
+							break;
+						}
+					}
+
+					if (starterPos != null && starterPos.x() == x && starterPos.y() == y) {
+						cellValue = "p";
+					}
+
+					if (levelEnd != null && levelEnd.x() == x && levelEnd.y() == y) {
+						cellValue = "e";
+					}
+
+					for (Turret t : turrets) {
+						if (t.rect.x() == x && t.rect.y() == y) {
+							cellValue = String.format("t[%.1f][%.1f][%.1f]", t.rot, t.interval, t.speed);
+						}
+					}
+
+					writer.write(cellValue);
+					if (i < cols - 1)
+						writer.write(",");
+				}
+				writer.write("\n");
+			}
+
+			System.out.println("Saved");
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

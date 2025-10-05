@@ -37,7 +37,7 @@ public class Turret {
 
 	}
 
-	void draw() {
+	void draw(float scale) {
 		// draw bullets
 		for (Bullet b : bullets) {
 			b.draw();
@@ -50,13 +50,13 @@ public class Turret {
 				.height(frameHeight);
 
 		Rectangle destRec = new Rectangle();
-		destRec.x(rect.x() + frameWidth / 2.0f)
-				.y(rect.y() + frameWidth / 2.0f)
-				.width(frameWidth)
-				.height(frameHeight);
+		destRec.x(rect.x() + frameWidth / 2.0f * scale)
+				.y(rect.y() + frameWidth / 2.0f * scale)
+				.width(frameWidth * scale)
+				.height(frameHeight * scale);
 
 		Vector2 origin = new Vector2();
-		origin.x(frameWidth / 2.0f).y(frameWidth / 2.0f);
+		origin.x(frameWidth / 2.0f * scale).y(frameWidth / 2.0f * scale);
 
 		DrawTexturePro(spriteSheet, sourceRec, destRec, origin, rot * 90 + 180, WHITE);
 	}

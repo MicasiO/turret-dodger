@@ -95,7 +95,7 @@ public class World {
 
 		// draw turrets
 		for (Turret turret : turrets) {
-			turret.draw();
+			turret.draw(1);
 		}
 
 		// draw level end
