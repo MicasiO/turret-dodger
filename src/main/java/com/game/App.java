@@ -54,12 +54,11 @@ public class App {
 			World.get().draw();
 			camera.target(World.get().player.pos);
 		}
-
 	}
 
 	public static void main(String args[]) {
 		App app = new App();
-		if (args[0].equals("editor")) {
+		if (args.length != 0 && args[0].equals("editor")) {
 			app.editorMode = true;
 		}
 

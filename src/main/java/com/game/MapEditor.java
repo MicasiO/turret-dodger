@@ -8,9 +8,14 @@ import static com.game.Constants.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.w3c.dom.css.Rect;
+
 public class MapEditor {
 	public static MapEditor mapEditorInstance = null;
 
+	Texture turretTexture;
+	Texture playerTexture;
+	Texture endLevelTexture;
 	Texture envSpriteSheet;
 	int frameWidth;
 	int frameHeight;
@@ -26,14 +31,22 @@ public class MapEditor {
 	Rectangle levelEnd = new Rectangle();
 
 	List<Rectangle> floors = new ArrayList<>();
-	List<Rectangle> turrets = new ArrayList<>();
+	List<Turret> turrets = new ArrayList<>();
 	List<Rectangle> walls = new ArrayList<>();
 
+	boolean waitingForTurretInput = false;
+	String currentInput = "";
+	int inputStage = 0;
+	Rectangle pendingTurretCell = null;
+
+	float tRotation, tInterval, tSpeed;
 	String[] selections = { "wall", "floor", "turret", "player", "end" };
 	int selection = 0;
 
 	public MapEditor() {
 		envSpriteSheet = LoadTexture("assets/animations/obstacles/environment.png");
+		turretTexture = LoadTexture("assets/animations/obstacles/turret.png");
+		playerTexture = LoadTexture("assets/animations/player/playermove.png");
 		frameWidth = envSpriteSheet.width() / frameCount;
 		frameHeight = envSpriteSheet.height();
 
@@ -54,25 +67,74 @@ public class MapEditor {
 	}
 
 	public void draw() {
-		/*
-		 * for (Rectangle c : cells) {
-		 * DrawRectangleLines((int) c.x(), (int) c.y(), (int) c.width(), (int)
-		 * c.height(), RED);
-		 * }
-		 */
 		DrawText(selections[selection], 20, 20, 20, WHITE);
 		for (Rectangle floor : floors) {
 			drawEnvironment(floor, 1);
 		}
 
-		// draw walls
 		for (Rectangle wall : walls) {
 			drawEnvironment(wall, 0);
 		}
 
+		drawEnvironment(levelEnd, 2);
+		drawPlayer(starterPos);
+
+		for (Turret turret : turrets) {
+			turret.draw();
+		}
+
+		if (waitingForTurretInput) {
+			DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.5f));
+
+			String[] prompts = {
+					"Enter turret rotation (degrees): ",
+					"Enter shooting interval (seconds): ",
+					"Enter bullet speed: "
+			};
+
+			DrawText(prompts[inputStage], SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 - 40, 20, WHITE);
+			DrawText(currentInput + "_", SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2, 20, YELLOW);
+		}
 	}
 
 	public void update() {
+		if (waitingForTurretInput) {
+			int key = GetCharPressed();
+
+			while (key > 0) {
+				char c = (char) key;
+				if ((c >= '0' && c <= '9')) {
+					currentInput += c;
+				}
+				key = GetCharPressed();
+			}
+
+			if (IsKeyPressed(KEY_BACKSPACE) && currentInput.length() > 0) {
+				currentInput = currentInput.substring(0, currentInput.length() - 1);
+			}
+
+			if (IsKeyPressed(KEY_ENTER)) {
+				if (currentInput.isEmpty())
+					return;
+
+				float value = Float.parseFloat(currentInput);
+				switch (inputStage) {
+					case 0 -> tRotation = value;
+					case 1 -> tInterval = value;
+					case 2 -> {
+						tSpeed = value;
+						addTurret((int) pendingTurretCell.x(), (int) pendingTurretCell.y(), tRotation, tInterval,
+								tSpeed);
+						waitingForTurretInput = false;
+						pendingTurretCell = null;
+					}
+				}
+				inputStage++;
+				currentInput = "";
+			}
+			return;
+		}
+
 		Vector2 mousePos = GetMousePosition();
 
 		for (Rectangle c : cells) {
@@ -81,26 +143,36 @@ public class MapEditor {
 					Rectangle placed = new Rectangle();
 					placed.x(c.x()).y(c.y()).width(c.width()).height(c.height());
 
-					if (selections[selection].equals("wall")) {
-						if (!walls.contains(placed)) {
-							walls.add(placed);
-						}
-					}
-					if (selections[selection].equals("floor")) {
-						if (!floors.contains(placed)) {
-							floors.add(placed);
-						}
-					}
-					if (selections[selection].equals("turret")) {
-						if (!turrets.contains(placed)) {
-							turrets.add(placed);
-						}
-					}
-					if (selections[selection].equals("player")) {
-						starterPos = placed;
-					}
-					if (selections[selection].equals("end")) {
-						levelEnd = placed;
+					String type = selections[selection];
+
+					boolean requiresEmpty = type.equals("wall") || type.equals("floor");
+
+					if (requiresEmpty && cellOccupied(placed))
+						return;
+
+					switch (type) {
+						case "wall":
+							if (!walls.contains(placed))
+								walls.add(placed);
+							break;
+						case "floor":
+							if (!floors.contains(placed))
+								floors.add(placed);
+							break;
+						case "turret":
+							if (!waitingForTurretInput && !cellOccupied(placed)) {
+								waitingForTurretInput = true;
+								pendingTurretCell = placed;
+								inputStage = 0;
+								currentInput = "";
+							}
+							break;
+						case "player":
+							starterPos = placed;
+							break;
+						case "end":
+							levelEnd = placed;
+							break;
 					}
 				}
 
@@ -119,10 +191,32 @@ public class MapEditor {
 		}
 	}
 
+	boolean cellOccupied(Rectangle c) {
+		for (Rectangle r : floors) {
+			if (r.x() == c.x() && r.y() == c.y())
+				return true;
+		}
+		for (Rectangle r : walls) {
+			if (r.x() == c.x() && r.y() == c.y())
+				return true;
+		}
+		for (Turret t : turrets) {
+			Rectangle r = t.rect;
+			if (r.x() == c.x() && r.y() == c.y())
+				return true;
+		}
+		if (starterPos != null && starterPos.x() == c.x() && starterPos.y() == c.y())
+			return true;
+		if (levelEnd != null && levelEnd.x() == c.x() && levelEnd.y() == c.y())
+			return true;
+
+		return false;
+	}
+
 	void eraseCell(Rectangle c) {
 		floors.removeIf(r -> r.x() == c.x() && r.y() == c.y());
 		walls.removeIf(r -> r.x() == c.x() && r.y() == c.y());
-		turrets.removeIf(r -> r.x() == c.x() && r.y() == c.y());
+		turrets.removeIf(r -> r.rect.x() == c.x() && r.rect.y() == c.y());
 
 		if (starterPos != null && starterPos.x() == c.x() && starterPos.y() == c.y()) {
 			starterPos = null;
@@ -145,5 +239,31 @@ public class MapEditor {
 		origin.x(0).y(0);
 
 		DrawTexturePro(envSpriteSheet, sourceEnvRect, dest, origin, 0, WHITE);
+	}
+
+	void drawPlayer(Rectangle rect) {
+		sourceEnvRect.x(frameWidth * 0)
+				.y(0)
+				.width(frameWidth)
+				.height(frameHeight);
+
+		Rectangle dest = new Rectangle();
+		dest.x(rect.x()).y(rect.y()).width(rect.width()).height(rect.height());
+
+		Vector2 origin = new Vector2();
+		origin.x(0).y(0);
+
+		DrawTexturePro(playerTexture, sourceEnvRect, dest, origin, 0, WHITE);
+
+	}
+
+	public void addTurret(int x, int y, float rot, float interval, float speed) {
+		Turret t = new Turret();
+		t.rect.x(x).y(y).width(cellSize)
+				.height(cellSize);
+		t.rot = rot;
+		t.interval = (float) interval;
+		t.speed = speed;
+		turrets.add(t);
 	}
 }
